@@ -1,4 +1,4 @@
-package starlark
+package starlarkpkg
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package github
+package githubpkg
 
 import (
 	"encoding/base64"

@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/moonshot-ai/kimi-config-server/internal/github"
-	"github.com/moonshot-ai/kimi-config-server/internal/starlark"
+	"github.com/moonshot-ai/kimi-config-server/githubpkg"
+	"github.com/moonshot-ai/kimi-config-server/starlarkpkg"
 )
 
 // Handler is the main entry point for Vercel Serverless Functions
@@ -35,7 +35,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gh := github.NewClient(token, repo, configPath)
+	gh := githubpkg.NewClient(token, repo, configPath)
 
 	// Ensure sample scripts exist (best effort)
 	_ = gh.EnsureSampleScripts()
@@ -59,7 +59,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handlePlatforms(w http.ResponseWriter, r *http.Request, gh *github.Client) {
+func handlePlatforms(w http.ResponseWriter, r *http.Request, gh *githubpkg.Client) {
 	if r.Method != "GET" {
 		http.Error(w, `{"error": "method not allowed"}`, http.StatusMethodNotAllowed)
 		return
@@ -82,7 +82,7 @@ func handlePlatforms(w http.ResponseWriter, r *http.Request, gh *github.Client) 
 	})
 }
 
-func handleScripts(w http.ResponseWriter, r *http.Request, gh *github.Client) {
+func handleScripts(w http.ResponseWriter, r *http.Request, gh *githubpkg.Client) {
 	// Extract platform from path: /api/scripts/:platform
 	prefix := "/api/scripts/"
 	platform := strings.TrimPrefix(r.URL.Path, prefix)
@@ -154,7 +154,7 @@ func handleScripts(w http.ResponseWriter, r *http.Request, gh *github.Client) {
 	}
 }
 
-func handleHistory(w http.ResponseWriter, r *http.Request, gh *github.Client) {
+func handleHistory(w http.ResponseWriter, r *http.Request, gh *githubpkg.Client) {
 	if r.Method != "GET" {
 		http.Error(w, `{"error": "method not allowed"}`, http.StatusMethodNotAllowed)
 		return
@@ -206,7 +206,7 @@ func handlePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, err := starlark.Execute(req.Script, starlark.EvalContext{
+	config, err := starlarkpkg.Execute(req.Script, starlarkpkg.EvalContext{
 		Platform: req.Ctx.Platform,
 		Version:  req.Ctx.Version,
 		Language: req.Ctx.Language,
@@ -225,7 +225,7 @@ func handlePreview(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleConfig(w http.ResponseWriter, r *http.Request, gh *github.Client) {
+func handleConfig(w http.ResponseWriter, r *http.Request, gh *githubpkg.Client) {
 	if r.Method != "GET" {
 		http.Error(w, `{"error": "method not allowed"}`, http.StatusMethodNotAllowed)
 		return
@@ -247,7 +247,7 @@ func handleConfig(w http.ResponseWriter, r *http.Request, gh *github.Client) {
 		return
 	}
 
-	config, err := starlark.Execute(content, starlark.EvalContext{
+	config, err := starlarkpkg.Execute(content, starlarkpkg.EvalContext{
 		Platform: platform,
 		Version:  version,
 		Language: language,
