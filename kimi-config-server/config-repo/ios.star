@@ -22,6 +22,7 @@ def build_config(ctx):
     else:
         fail("unsupported language: " + ctx.language)
 
+
     # === 地区配置 ===
     if ctx.region == "domestic":
         config["system"]["cacheLimitMB"] = 100
