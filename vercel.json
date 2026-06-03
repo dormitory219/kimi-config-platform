@@ -30,5 +30,6 @@
         }
       ]
     }
-  ]
+  ],
+  "ignoreCommand": "echo 'Ignoring kimi-config-server'"
 }
