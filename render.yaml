@@ -14,7 +14,7 @@ services:
         value: release
     healthCheckPath: /api/platforms
 
-  # 前端静态站点
+  # 前端静态站点 — 注意：需要先部署后端，获取实际 URL 后再填入 VITE_API_URL
   - type: static
     name: kimi-config-web
     rootDir: kimi-config-web
@@ -22,4 +22,5 @@ services:
     staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
-        value: https://kimi-config-api.onrender.com
+        # 部署后端后，将此值替换为实际的后端 URL，例如：https://kimi-config-api-xxx.onrender.com
+        value: ""
