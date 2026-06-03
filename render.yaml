@@ -1,0 +1,25 @@
+services:
+  # 后端 API 服务
+  - type: web
+    name: kimi-config-api
+    runtime: docker
+    rootDir: kimi-config-server
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: CONFIG_REPO_PATH
+        value: ./config-repo
+      - key: GIN_MODE
+        value: release
+    healthCheckPath: /api/platforms
+
+  # 前端静态站点
+  - type: static
+    name: kimi-config-web
+    rootDir: kimi-config-web
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://kimi-config-api.onrender.com
