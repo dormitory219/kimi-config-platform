@@ -1,0 +1,23 @@
+# Koyeb App Configuration
+# Deploy via: koyeb app init --config koyeb.yaml
+# Or use Dashboard: https://app.koyeb.com
+
+name: kimi-config-api
+git:
+  repository: github.com/dormitory219/kimi-config-platform
+  branch: main
+docker:
+  dockerfile: kimi-config-server/Dockerfile
+ports:
+  - port: 8080
+    protocol: http
+routes:
+  - port: 8080
+    path: /
+env:
+  - name: PORT
+    value: "8080"
+  - name: CONFIG_REPO_PATH
+    value: ./config-repo
+  - name: GIN_MODE
+    value: release
