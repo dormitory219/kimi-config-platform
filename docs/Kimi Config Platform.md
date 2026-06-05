@@ -106,26 +106,43 @@ React 前端 (Monaco Editor)  <--->  Go HTTP API (Gin)  <--->  Git 仓库 (*.sta
 
 ### 数据流
 
-1. 开发者在 React 前端编辑 `.star` 脚本
-2. 点击 **Save** / **Publish** → 通过 GitHub API 创建 commit（线上）或 `git commit`（本地）
-3. App 启动时请求 `GetConfig(version, lang, region)` → 后端执行对应 Starlark 脚本 → 返回 JSON 配置
+1. 开发者在 React 前端选择平台，页面默认加载 latest 配置版本
+2. latest 配置版本只读；如需修改，点击 **New Draft**
+3. 后端复制 latest 内容，返回下一个配置版本号（如 `v2 -> v3 draft`）和脚本内容
+4. 开发者编辑 draft，右侧可 Preview、History、Diff
+5. 点击 **Save** → 保存 draft；该配置版本成为新的 latest
+6. 点击 **Publish** → 通过 GitHub API 创建 commit（线上）或 `git commit`（本地）
+7. App 启动时请求 `GetConfig(version, lang, region)` → 后端读取对应平台脚本并执行 Starlark → 返回 JSON 配置
+
+这里有两个不同的版本概念：
+
+- **配置版本**：管理后台里的 `v1` / `v2` / `v3`，用于配置脚本演进
+- **客户端 App 版本**：Preview 和 `/v1/config` 请求中的 `version=2.5.5`，会传入 Starlark 的 `ctx.version`
 
 ### Git 仓库结构
 
 ```
 config-repo/
-├── ios.star          # iOS 平台主配置脚本
-├── android.star      # Android 平台主配置脚本
+├── ios.star          # iOS legacy v1 配置脚本
+├── android.star      # Android legacy v1 配置脚本
+├── ios/
+│   ├── v2.star       # iOS v2 配置脚本
+│   └── v3.star       # iOS v3 配置脚本
+├── android/
+│   └── v2.star       # Android v2 配置脚本
 ├── lib/              # 共享库（可被主脚本 load）
 │   └── common.star
 └── README.md
 ```
+
+为了兼容早期实现，根目录的 `<platform>.star` 被识别为 `v1`。保存新版本时写入 `<platform>/vN.star`，例如 `ios/v2.star`。
 
 ### Starlark DSL 设计
 
 ```starlark
 def build_config(ctx):
     # ctx 包含：platform, version, language, region
+    # 这里的 ctx.version 是客户端 App 版本，如 "2.5.5"
     config = {
         "system": {},
         "taskbar": {"items": []},
@@ -158,20 +175,29 @@ def build_config(ctx):
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/platforms` | 列出所有平台脚本 |
-| GET | `/api/scripts/:platform` | 读取平台脚本内容 |
-| GET | `/api/scripts/:platform/history` | Git commit 历史 |
-| POST | `/api/scripts/:platform` | 保存脚本（工作区）|
-| POST | `/api/scripts/:platform/publish` | 发布脚本（git commit）|
+| GET | `/api/scripts/:platform/versions` | 列出配置版本、latest 和 nextVersion |
+| POST | `/api/scripts/:platform/drafts` | 从 latest 复制内容，创建下一版本草稿响应 |
+| GET | `/api/scripts/:platform?version=vN` | 读取指定配置版本脚本内容 |
+| GET | `/api/scripts/:platform/history?version=vN` | 指定配置版本的 Git commit 历史 |
+| POST | `/api/scripts/:platform?version=vN` | 保存指定配置版本脚本 |
+| POST | `/api/scripts/:platform/publish?version=vN` | 发布指定配置版本（git commit）|
 | POST | `/api/preview` | 预览配置（执行脚本）|
 | GET | `/v1/config?platform&version&lang&region` | 客户端获取配置 |
+
+版本读取规则：
+
+- 读取指定配置版本时，优先读取 `<platform>/vN.star`
+- 如果读取 `v1` 且目录文件不存在，则 fallback 到 legacy `<platform>.star`
+- 保存 `vN` 时必须写入目标版本文件；不会 fallback 写回 legacy 脚本
+- `/v1/config` 的 `version` 参数是客户端 App 版本；当该值形如 `vN` 且存在 `<platform>/vN.star` 时，可用于调试读取指定配置版本，否则兼容读取 `<platform>.star`
 
 ### 前端页面设计
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Kimi Config Platform                    [Save] [Publish]   │
+│  Kimi Config Platform       [New Draft] [Save] [Publish]    │
 ├─────────┬──────────────────────────┬────────────────────────┤
-│         │                          │  PREVIEW │ HISTORY     │
+│         │ ios/v3.star   Version ▼   │ PREVIEW │ HISTORY │DIFF│
 │ Platforms│   Monaco Editor          │                        │
 │  ios     │   (Starlark 语法高亮)     │  Platform: ios         │
 │  android │                          │  Version: 2.5.5        │
@@ -186,6 +212,16 @@ def build_config(ctx):
 │          │                          │  }                     │
 └─────────┴──────────────────────────┴────────────────────────┘
 ```
+
+前端交互规则：
+
+- latest 配置版本显示 `Read-only`，不可直接编辑，Save 禁用
+- latest 可 New Draft / Publish
+- 旧版本只读，只能查看 Preview / History / Diff
+- 只有 latest 可以点击 **New Draft**
+- draft 可编辑，可 Save / Publish；draft 不允许再次 New Draft
+- Save draft 后，draft 成为新的 latest
+- Diff 按配置版本链比较：`v1` 无 diff，`v2` 对比 `v1`，`v3` 对比 `v2`，draft `vN` 对比其基线 `vN-1`
 
 ---
 
@@ -310,13 +346,15 @@ curl 'http://localhost:8080/v1/config?platform=ios&version=2.5.5&lang=fr&region=
 ### 场景 4：管理后台实时预览
 
 在 Web 界面中：
-1. 编辑 `ios.star` 脚本
-2. 右侧 Preview 面板输入 `version=2.5.5, language=zh`
-3. 点击 **Run Preview**
-4. 实时看到 JSON 输出
-5. 修改 `language=en`，再次 Run Preview，输出立即变化
-6. 点击 **Save** → **Publish**，Git commit 记录生成
-7. 切换到 **History** Tab 查看 commit 历史
+1. 默认打开 iOS latest 配置版本，编辑器为只读
+2. 点击 **New Draft**，系统从 latest 复制内容并创建下一配置版本草稿
+3. 在 draft 中编辑 Starlark 脚本
+4. 右侧 Preview 面板输入客户端 App `version=2.5.5, language=zh`
+5. 点击 **Run Preview**，实时看到 JSON 输出
+6. 切换到 **Diff** Tab，查看 draft 和上一配置版本的差异
+7. 点击 **Save**，draft 成为新的 latest
+8. 点击 **Publish**，Git commit 记录生成
+9. 切换到 **History** Tab 查看 commit 历史
 
 ---
 
@@ -329,6 +367,8 @@ curl 'http://localhost:8080/v1/config?platform=ios&version=2.5.5&lang=fr&region=
 | 版本管理 | 无 | Git 天然支持 |
 | 回滚 | 手动 | `git revert` |
 | 预览能力 | 无 | 实时执行预览 |
+| 配置演进 | 覆盖已有记录 | latest 只读，New Draft 派生下一配置版本 |
+| Diff | 无 | 按配置版本链和上一版比较 |
 | 未知条件处理 | 静默返回默认配置 | `fail` 显式报错 |
 | 安全 | 无限制 | Starlark 沙箱（禁止 I/O、网络）|
 

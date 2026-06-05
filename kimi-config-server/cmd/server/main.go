@@ -43,6 +43,8 @@ func main() {
 	admin := r.Group("/api")
 	{
 		admin.GET("/platforms", api.ListPlatforms(repo))
+		admin.GET("/scripts/:platform/versions", api.ListVersions(repo))
+		admin.POST("/scripts/:platform/drafts", api.CreateDraft(repo))
 		admin.GET("/scripts/:platform", api.GetScript(repo))
 		admin.GET("/scripts/:platform/history", api.GetHistory(repo))
 		admin.POST("/scripts/:platform", api.SaveScript(repo))

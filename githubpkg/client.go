@@ -29,12 +29,12 @@ type Commit struct {
 
 // FileContent represents GitHub content API response
 type fileContent struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	SHA     string `json:"sha"`
-	Content string `json:"content"`
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	SHA      string `json:"sha"`
+	Content  string `json:"content"`
 	Encoding string `json:"encoding"`
-	Type    string `json:"type"`
+	Type     string `json:"type"`
 }
 
 // CommitItem represents a single commit from GitHub API
@@ -43,8 +43,8 @@ type commitItem struct {
 	Commit struct {
 		Message string `json:"message"`
 		Author  struct {
-			Name  string    `json:"name"`
-			Date  time.Time `json:"date"`
+			Name string    `json:"name"`
+			Date time.Time `json:"date"`
 		} `json:"author"`
 	} `json:"commit"`
 }
@@ -80,6 +80,14 @@ func (c *Client) commitsURL(file string) string {
 
 func (c *Client) dirURL() string {
 	return fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", c.owner, c.repo, c.configPath)
+}
+
+func (c *Client) subdirURL(dir string) string {
+	dir = strings.Trim(dir, "/")
+	if dir == "" {
+		return c.dirURL()
+	}
+	return fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s/%s", c.owner, c.repo, c.configPath, dir)
 }
 
 func (c *Client) doRequest(req *http.Request) (*http.Response, error) {
@@ -230,7 +238,12 @@ func (c *Client) History(name string, n int) ([]Commit, error) {
 
 // ListStarFiles returns all .star files in the config directory
 func (c *Client) ListStarFiles() ([]string, error) {
-	url := c.dirURL()
+	return c.ListStarFilesInDir("")
+}
+
+// ListStarFilesInDir returns all .star files in a config subdirectory.
+func (c *Client) ListStarFilesInDir(dir string) ([]string, error) {
+	url := c.subdirURL(dir)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err

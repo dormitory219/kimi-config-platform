@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { ScriptContext } from '../api';
 
 interface PreviewProps {
   script: string;
+  platform: string;
 }
 
-export default function Preview({ script }: PreviewProps) {
+export default function Preview({ script, platform }: PreviewProps) {
   const [ctx, setCtx] = useState<ScriptContext>({
-    platform: 'ios',
+    platform,
     version: '2.5.5',
     language: 'zh',
     region: 'domestic',
@@ -16,6 +17,10 @@ export default function Preview({ script }: PreviewProps) {
   const [result, setResult] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setCtx((prev) => ({ ...prev, platform }));
+  }, [platform]);
 
   const runPreview = async () => {
     setLoading(true);

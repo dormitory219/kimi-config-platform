@@ -1,16 +1,27 @@
 import { useState } from 'react';
 import Preview from './Preview';
 import History from './History';
+import DiffView from './DiffView';
 
 interface RightPanelProps {
   script: string;
   platform: string;
+  version: string;
+  diffBaseVersion: string;
+  diffBaseContent: string;
 }
 
-type Tab = 'preview' | 'history';
+type Tab = 'preview' | 'diff' | 'history';
 
-export default function RightPanel({ script, platform }: RightPanelProps) {
+export default function RightPanel({
+  script,
+  platform,
+  version,
+  diffBaseVersion,
+  diffBaseContent,
+}: RightPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('preview');
+  const hasDiffBase = Boolean(diffBaseVersion);
 
   return (
     <div style={styles.panel}>
@@ -33,10 +44,30 @@ export default function RightPanel({ script, platform }: RightPanelProps) {
         >
           History
         </button>
+        <button
+          onClick={() => setActiveTab('diff')}
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'diff' ? styles.tabActive : {}),
+          }}
+        >
+          Diff
+        </button>
       </div>
       <div style={styles.content}>
-        {activeTab === 'preview' && <Preview script={script} />}
-        {activeTab === 'history' && <History platform={platform} />}
+        {activeTab === 'preview' && (
+          <Preview script={script} platform={platform} />
+        )}
+        {activeTab === 'history' && <History platform={platform} version={version} />}
+        {activeTab === 'diff' && (
+          <DiffView
+            original={diffBaseContent}
+            modified={script}
+            originalLabel={`base ${diffBaseVersion || '-'}`}
+            modifiedLabel={`editing ${version || '-'}`}
+            emptyMessage={!hasDiffBase ? `${version || 'This version'} is the first version and has no diff.` : undefined}
+          />
+        )}
       </div>
     </div>
   );

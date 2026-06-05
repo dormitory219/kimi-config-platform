@@ -3,6 +3,7 @@ import { api } from '../api';
 
 interface HistoryProps {
   platform: string;
+  version: string;
 }
 
 interface Commit {
@@ -12,18 +13,18 @@ interface Commit {
   timestamp: string;
 }
 
-export default function History({ platform }: HistoryProps) {
+export default function History({ platform, version }: HistoryProps) {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!platform) return;
     setLoading(true);
-    api.getHistory(platform)
+    api.getHistory(platform, version)
       .then((resp) => setCommits(resp.data.commits))
       .catch(() => setCommits([]))
       .finally(() => setLoading(false));
-  }, [platform]);
+  }, [platform, version]);
 
   const formatTime = (ts: string) => {
     const d = new Date(ts);

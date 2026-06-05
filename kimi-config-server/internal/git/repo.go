@@ -59,6 +59,13 @@ func (r *Repo) WriteFile(name string, content []byte) error {
 	return os.WriteFile(path, content, 0644)
 }
 
+// FileExists reports whether a file exists in the working tree.
+func (r *Repo) FileExists(name string) bool {
+	path := filepath.Join(r.path, name)
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
 // Commit creates a git commit with the given message
 func (r *Repo) Commit(message, authorName, authorEmail string) error {
 	wt, err := r.repo.Worktree()
@@ -130,6 +137,26 @@ func (r *Repo) History(file string, n int) ([]Commit, error) {
 // ListStarFiles returns all .star files in the repo root
 func (r *Repo) ListStarFiles() ([]string, error) {
 	entries, err := os.ReadDir(r.path)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".star") {
+			files = append(files, entry.Name())
+		}
+	}
+	return files, nil
+}
+
+// ListStarFilesInDir returns all .star files in a repository subdirectory.
+func (r *Repo) ListStarFilesInDir(dir string) ([]string, error) {
+	path := filepath.Join(r.path, dir)
+	entries, err := os.ReadDir(path)
+	if os.IsNotExist(err) {
+		return []string{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}

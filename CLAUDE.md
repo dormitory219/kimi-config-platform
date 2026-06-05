@@ -16,8 +16,10 @@ kimi-app-config/
 │   ├── cmd/server/
 │   ├── internal/
 │   └── config-repo/        # 配置脚本 Git 仓库
-│       ├── ios.star
-│       └── android.star
+│       ├── ios.star        # legacy v1 脚本
+│       ├── android.star    # legacy v1 脚本
+│       └── ios/
+│           └── v2.star     # v2+ 版本化脚本
 ├── kimi-config-web/        # React 前端
 │   ├── src/
 │   │   ├── components/
@@ -90,23 +92,41 @@ def build_config(ctx):
 
 `ctx` 包含：
 - `ctx.platform` — `"ios"` / `"android"`
-- `ctx.version` — 版本号字符串（如 `"2.5.5"`）
+- `ctx.version` — 客户端 App 版本号字符串（如 `"2.5.5"`），不是配置版本 `v1` / `v2`
 - `ctx.language` — `"zh"` / `"en"` / `"ja"`
 - `ctx.region` — `"domestic"` / `"overseas"`
 
+### 配置版本工作流
+
+平台脚本有独立的配置版本：
+
+- `ios.star` / `android.star` 会被兼容识别为 `v1`
+- 新版本保存为 `<platform>/vN.star`，例如 `ios/v2.star`
+- 页面默认打开当前 latest 配置版本
+- latest 版本只读，不允许直接修改
+- 修改配置必须点击 **New Draft**，系统会复制 latest 内容并创建下一个草稿版本号（如 `v2 -> v3 draft`）
+- latest 可 New Draft / Publish，但 Save 禁用
+- draft 才可编辑、Save、Publish；draft 不能继续 New Draft
+- 旧版本只读，只能查看 History / Diff，不能 New Draft、Save、Publish
+- Diff 按版本链比较：`v1` 无 diff，`v2` 对比 `v1`，`v3` 对比 `v2`，draft `vN` 对比它复制出来的 `vN-1`
+
 ### 预览配置
 
-在右侧 Preview 面板输入 version / language / region，点击 **Run Preview**，实时查看生成的 JSON 配置。
+在右侧 Preview 面板输入客户端 App version / language / region，点击 **Run Preview**，实时查看生成的 JSON 配置。
+
+注意：Preview 里的 `version` 是客户端 App 版本（例如 `2.5.5`），不是配置版本 `v1` / `v2`。
 
 ### 保存与发布
 
-- **Save** — 保存脚本（直接生成 GitHub commit）
-- **Publish** — 带消息提交 GitHub commit + 记录历史
+- **New Draft** — 从 latest 复制内容，创建下一个正在编辑的配置版本
+- **Save** — 保存 draft；保存后该配置版本成为 latest
+- **Publish** — 带消息提交 Git commit + 记录历史
 - **History** — 查看 Git commit 历史（Tab 切换）
+- **Diff** — 查看当前配置版本和上一配置版本的差异
 
 线上和本地的保存行为略有不同：
 - **本地（Gin）**: Save 只写工作区文件，Publish 才生成 Git commit
-- **线上（Vercel）**: Save 和 Publish 都直接通过 GitHub API 创建 commit（因为 Serverless 无状态，无法保存工作区）
+- **线上（Vercel）**: Save 和 Publish 都通过 GitHub API 创建 commit（因为 Serverless 无状态，无法保存工作区）
 
 ### 客户端获取配置
 
@@ -149,10 +169,12 @@ curl 'https://kimi-app-config.vercel.app/v1/config?platform=ios&version=2.5.5&la
 
 **API 端点**:
 - `GET  /api/platforms`                列出所有平台
-- `GET  /api/scripts/:platform`        读取脚本内容
-- `GET  /api/scripts/:platform/history` Git commit 历史
-- `POST /api/scripts/:platform`        保存脚本（直接 commit）
-- `POST /api/scripts/:platform/publish` 发布脚本（带消息 commit）
+- `GET  /api/scripts/:platform/versions` 列出配置版本、latest 和 nextVersion
+- `POST /api/scripts/:platform/drafts` 从 latest 创建下一配置版本草稿（仅返回内容，不提前落盘）
+- `GET  /api/scripts/:platform?version=vN` 读取指定配置版本脚本内容
+- `GET  /api/scripts/:platform/history?version=vN` Git commit 历史
+- `POST /api/scripts/:platform?version=vN` 保存指定配置版本脚本
+- `POST /api/scripts/:platform/publish?version=vN` 发布指定配置版本（带消息 commit）
 - `POST /api/preview`                  预览配置（执行脚本）
 - `GET  /v1/config`                    客户端获取配置
 
@@ -166,6 +188,8 @@ curl 'https://kimi-app-config.vercel.app/v1/config?platform=ios&version=2.5.5&la
 ## 数据存储
 
 配置脚本存储在 `config-repo/` 的 Git 仓库中：
+- legacy 根目录脚本（如 `ios.star`）兼容为 `v1`
+- 后续配置版本存储为 `<platform>/vN.star`
 - 每次 Publish = 一次 Git commit
 - 天然支持版本历史、回滚、diff
 - 无需数据库

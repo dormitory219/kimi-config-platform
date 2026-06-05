@@ -34,7 +34,9 @@ def build_config(ctx):
         config["system"]["kimiplusPlaza"] = {"enabled": True}
         config["taskbar"]["items"].append({"type": "KIMI_PLUS", "title": "Kimi+"})
 
-    if ctx.version >= "2.6.0":
+    if ctx.version >= "2.6.5":
+        config["model"]["defaultModel"] = "kimi-k2.6"
+    elif ctx.version >= "2.6.0":
         config["model"]["defaultModel"] = "kimi-k2.5"
     elif ctx.version >= "2.5.5":
         config["model"]["defaultModel"] = "kimi-k2"

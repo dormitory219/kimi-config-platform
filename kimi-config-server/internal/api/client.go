@@ -3,6 +3,8 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/moonshot-ai/kimi-config-server/internal/git"
@@ -28,8 +30,12 @@ func GetClientConfig(repo *git.Repo) gin.HandlerFunc {
 			region = "domestic"
 		}
 
-		// Read script
-		scriptBytes, err := repo.ReadFile(platform + ".star")
+		// Read versioned script first, then fall back to the legacy platform script.
+		versionedFile := platform + "/" + strings.TrimSuffix(version, ".star") + ".star"
+		scriptBytes, err := repo.ReadFile(versionedFile)
+		if os.IsNotExist(err) {
+			scriptBytes, err = repo.ReadFile(platform + ".star")
+		}
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("config for platform %s not found", platform)})
 			return
